@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -11,13 +11,15 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Loader2, Trophy } from 'lucide-react'
-import type { Lead, Profile } from '@/types'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Loader2, Trophy, Package } from 'lucide-react'
+import { formatCurrency } from '@/lib/utils'
+import type { Lead, Profile, Product } from '@/types'
 
 const schema = z.object({
-  value:   z.string().min(1, 'Ingresa el valor de la venta'),
-  product: z.string().min(2, 'Describe el producto o servicio'),
-  notes:   z.string().optional(),
+  value:      z.string().min(1, 'Ingresa el valor de la venta'),
+  product_id: z.string().min(1, 'Selecciona un producto'),
+  notes:      z.string().optional(),
 })
 type FormData = z.infer<typeof schema>
 
@@ -32,13 +34,36 @@ export function CloseSaleDialog({ open, onOpenChange, lead, profile }: Props) {
   const router = useRouter()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
+  const [products, setProducts] = useState<Product[]>([])
+  const [loadingProducts, setLoadingProducts] = useState(false)
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
 
+  const selectedProductId = watch('product_id')
+  const selectedProduct = products.find((p) => p.id === selectedProductId)
+
+  // Load products when dialog opens
+  useEffect(() => {
+    if (!open) return
+    setLoadingProducts(true)
+    supabase
+      .from('products')
+      .select('*')
+      .eq('is_active', true)
+      .order('name')
+      .then(({ data }) => {
+        setProducts((data ?? []) as Product[])
+        setLoadingProducts(false)
+      })
+  }, [open])
+
   async function onSubmit(data: FormData) {
     setLoading(true)
+
+    const product = products.find((p) => p.id === data.product_id)
+    const productName = product?.name ?? data.product_id
 
     // Get closed-won stage
     const { data: closedStage } = await supabase
@@ -49,9 +74,9 @@ export function CloseSaleDialog({ open, onOpenChange, lead, profile }: Props) {
 
     // Update lead
     await supabase.from('leads').update({
-      status:    'closed',
-      stage_id:  closedStage?.id ?? lead.stage_id,
-      closed_at: new Date().toISOString(),
+      status:          'closed',
+      stage_id:        closedStage?.id ?? lead.stage_id,
+      closed_at:       new Date().toISOString(),
       estimated_value: parseFloat(data.value),
     }).eq('id', lead.id)
 
@@ -60,7 +85,7 @@ export function CloseSaleDialog({ open, onOpenChange, lead, profile }: Props) {
       lead_id:   lead.id,
       user_id:   profile.id,
       value:     parseFloat(data.value),
-      product:   data.product,
+      product:   productName,
       notes:     data.notes ?? null,
       closed_at: new Date().toISOString(),
     })
@@ -89,27 +114,68 @@ export function CloseSaleDialog({ open, onOpenChange, lead, profile }: Props) {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2">
+          {/* Product select */}
           <div className="space-y-1.5">
-            <Label className="text-sm font-medium">Valor de la venta (CLP)</Label>
+            <Label className="text-sm font-medium">Producto / Servicio</Label>
+            {loadingProducts ? (
+              <div className="h-10 flex items-center gap-2 px-3 rounded-lg border border-border/60 text-sm text-muted-foreground">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Cargando productos...
+              </div>
+            ) : products.length === 0 ? (
+              <div className="h-10 flex items-center gap-2 px-3 rounded-lg border border-amber-200 bg-amber-50 text-sm text-amber-700">
+                <Package className="w-3.5 h-3.5" />
+                No hay productos definidos. Pide al admin que los configure.
+              </div>
+            ) : (
+              <Select onValueChange={(v: string | null) => { if (v) setValue('product_id', v) }}>
+                <SelectTrigger className="h-10 text-sm">
+                  <SelectValue placeholder="Selecciona un producto..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {products.map((product) => (
+                    <SelectItem key={product.id} value={product.id}>
+                      <div className="flex items-center justify-between gap-4 w-full">
+                        <span>{product.name}</span>
+                        {product.price && (
+                          <span className="text-xs text-muted-foreground ml-2">
+                            {formatCurrency(product.price)}
+                          </span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {errors.product_id && (
+              <p className="text-red-500 text-xs">{errors.product_id.message}</p>
+            )}
+            {selectedProduct?.description && (
+              <p className="text-xs text-muted-foreground pl-1">{selectedProduct.description}</p>
+            )}
+          </div>
+
+          {/* Value */}
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">
+              Valor de la venta (CLP)
+              {selectedProduct?.price && (
+                <span className="ml-2 text-xs text-muted-foreground font-normal">
+                  Referencia: {formatCurrency(selectedProduct.price)}
+                </span>
+              )}
+            </Label>
             <Input
               {...register('value')}
               type="number"
-              placeholder="ej. 150000"
+              placeholder={selectedProduct?.price?.toString() ?? 'ej. 150000'}
               className="h-10"
             />
             {errors.value && <p className="text-red-500 text-xs">{errors.value.message}</p>}
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-sm font-medium">Producto / Servicio</Label>
-            <Input
-              {...register('product')}
-              placeholder="ej. Plan mensual premium"
-              className="h-10"
-            />
-            {errors.product && <p className="text-red-500 text-xs">{errors.product.message}</p>}
-          </div>
-
+          {/* Notes */}
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">Notas (opcional)</Label>
             <Textarea
@@ -130,7 +196,7 @@ export function CloseSaleDialog({ open, onOpenChange, lead, profile }: Props) {
             </Button>
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loading || products.length === 0}
               className="flex-1 h-10 bg-yellow-500 hover:bg-yellow-600 text-white font-medium"
             >
               {loading ? (

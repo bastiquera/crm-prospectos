@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   BarChart3, Users, Kanban, TrendingUp,
-  Database, Settings, LogOut, Inbox
+  Database, Settings, LogOut, Inbox, Package
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Profile } from '@/types'
@@ -17,11 +17,12 @@ interface NavItem {
 }
 
 const adminNav: NavItem[] = [
-  { href: '/admin',          label: 'Dashboard',    icon: BarChart3 },
-  { href: '/admin/leads',    label: 'Todos los leads', icon: Database },
-  { href: '/admin/vendors',  label: 'Vendedores',   icon: Users },
-  { href: '/admin/pipeline', label: 'Pipeline',     icon: Settings },
-  { href: '/admin/metrics',  label: 'Métricas',     icon: TrendingUp },
+  { href: '/admin',           label: 'Dashboard',      icon: BarChart3 },
+  { href: '/admin/leads',     label: 'Todos los leads', icon: Database },
+  { href: '/admin/vendors',   label: 'Vendedores',     icon: Users },
+  { href: '/admin/products',  label: 'Productos',      icon: Package },
+  { href: '/admin/pipeline',  label: 'Pipeline',       icon: Settings },
+  { href: '/admin/metrics',   label: 'Métricas',       icon: TrendingUp },
 ]
 
 const sellerNav: NavItem[] = [

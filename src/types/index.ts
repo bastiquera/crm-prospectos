@@ -111,6 +111,15 @@ export interface Sale {
   user?: Profile
 }
 
+export interface Product {
+  id: string
+  name: string
+  description: string | null
+  price: number | null
+  is_active: boolean
+  created_at: string
+}
+
 // ============================================================
 // UI / FORM TYPES
 // ============================================================

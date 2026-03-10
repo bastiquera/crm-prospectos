@@ -87,15 +87,35 @@ VALUES
   ('Venta cerrada',     5, false, true,  false),
   ('Perdido',           6, false, false, true);
 
+-- 6. PRODUCTS (predefined by admin, selected by sellers on close)
+CREATE TABLE public.products (
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name        TEXT NOT NULL,
+  description TEXT,
+  price       DECIMAL(12,2),
+  is_active   BOOLEAN DEFAULT true,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ============================================================
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================================
 
-ALTER TABLE public.profiles      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pipeline_stages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.leads         ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.follow_ups    ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.sales         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.leads           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.follow_ups      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sales           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products        ENABLE ROW LEVEL SECURITY;
+
+-- PRODUCTS — todos pueden leer, solo admin escribe
+CREATE POLICY "products_select" ON public.products
+  FOR SELECT USING (true);
+
+CREATE POLICY "products_write_admin" ON public.products
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
 
 -- PROFILES policies
 CREATE POLICY "profiles_select" ON public.profiles
