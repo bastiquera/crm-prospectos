@@ -84,12 +84,10 @@ export function PipelineCard({ lead, stages, currentStageIdx, profile, onMoveSta
 
         {/* Move stage */}
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="flex-1 flex items-center justify-center gap-1 h-8 rounded-lg bg-slate-50 hover:bg-slate-100 border border-border text-slate-600 text-xs font-medium transition-colors">
-              <ArrowRight className="w-3 h-3" />
-              Mover
-              <ChevronDown className="w-3 h-3" />
-            </button>
+          <DropdownMenuTrigger className="flex-1 flex items-center justify-center gap-1 h-8 rounded-lg bg-slate-50 hover:bg-slate-100 border border-border text-slate-600 text-xs font-medium transition-colors">
+            <ArrowRight className="w-3 h-3" />
+            Mover
+            <ChevronDown className="w-3 h-3" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
             {stages.map((stage, idx) => (

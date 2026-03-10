@@ -15,7 +15,7 @@ import { Loader2, Trophy } from 'lucide-react'
 import type { Lead, Profile } from '@/types'
 
 const schema = z.object({
-  value:   z.coerce.number().positive('Ingresa el valor de la venta'),
+  value:   z.string().min(1, 'Ingresa el valor de la venta'),
   product: z.string().min(2, 'Describe el producto o servicio'),
   notes:   z.string().optional(),
 })
@@ -52,14 +52,14 @@ export function CloseSaleDialog({ open, onOpenChange, lead, profile }: Props) {
       status:    'closed',
       stage_id:  closedStage?.id ?? lead.stage_id,
       closed_at: new Date().toISOString(),
-      estimated_value: data.value,
+      estimated_value: parseFloat(data.value),
     }).eq('id', lead.id)
 
     // Register sale
     await supabase.from('sales').insert({
       lead_id:   lead.id,
       user_id:   profile.id,
-      value:     data.value,
+      value:     parseFloat(data.value),
       product:   data.product,
       notes:     data.notes ?? null,
       closed_at: new Date().toISOString(),

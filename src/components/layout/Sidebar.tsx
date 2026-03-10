@@ -4,8 +4,8 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
-  BarChart3, Users, LayoutKanban, TrendingUp,
-  Database, Settings, LogOut, Inbox, UserCircle
+  BarChart3, Users, Kanban, TrendingUp,
+  Database, Settings, LogOut, Inbox
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Profile } from '@/types'
@@ -26,7 +26,7 @@ const adminNav: NavItem[] = [
 
 const sellerNav: NavItem[] = [
   { href: '/seller',          label: 'Leads nuevos', icon: Inbox },
-  { href: '/seller/pipeline', label: 'Mi pipeline',  icon: LayoutKanban },
+  { href: '/seller/pipeline', label: 'Mi pipeline',  icon: Kanban },
   { href: '/seller/metrics',  label: 'Mis métricas', icon: TrendingUp },
 ]
 
