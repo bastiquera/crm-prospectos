@@ -14,11 +14,12 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Phone, MessageCircle, Mail, Plus, Loader2,
-  Clock, User, MapPin, Calendar, Trophy, ArrowLeft
+  Clock, Calendar, Trophy, ArrowLeft, BookOpen
 } from 'lucide-react'
 import { formatDistanceToNow, formatDate, formatCurrency, cn } from '@/lib/utils'
-import { LEAD_SOURCE_LABELS, type Lead, type Profile, type FollowUp, type ContactType } from '@/types'
+import { LEAD_SOURCE_LABELS, type Lead, type Profile, type FollowUp, type ContactType, type ChecklistItem, type LeadChecklistCompletion } from '@/types'
 import { CloseSaleDialog } from '@/components/pipeline/CloseSaleDialog'
+import { LeadChecklist } from '@/components/leads/LeadChecklist'
 import Link from 'next/link'
 
 const followUpSchema = z.object({
@@ -40,9 +41,11 @@ interface Props {
   lead: Lead
   profile: Profile
   followUps: FollowUp[]
+  checklistItems: ChecklistItem[]
+  checklistCompletions: LeadChecklistCompletion[]
 }
 
-export function LeadDetailView({ lead, profile, followUps: initialFollowUps }: Props) {
+export function LeadDetailView({ lead, profile, followUps: initialFollowUps, checklistItems, checklistCompletions }: Props) {
   const router = useRouter()
   const supabase = createClient()
   const [followUps, setFollowUps] = useState<FollowUp[]>(initialFollowUps)
@@ -143,6 +146,21 @@ export function LeadDetailView({ lead, profile, followUps: initialFollowUps }: P
                   <Calendar className="w-3.5 h-3.5" />
                 </div>
                 {formatDate(lead.created_at)}
+              </div>
+              {(lead as any).course?.name && (
+                <div className="flex items-center gap-2.5 text-sm">
+                  <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <BookOpen className="w-3.5 h-3.5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium leading-none mb-0.5">Curso de interés</p>
+                    <p className="text-sm font-semibold text-foreground">{(lead as any).course.name}</p>
+                  </div>
+                </div>
+              )}
+              <div className="pt-1 border-t border-border/40">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium mb-1">Cómo nos conoció</p>
+                <p className="text-sm text-foreground">{LEAD_SOURCE_LABELS[lead.source]}</p>
               </div>
             </div>
 
@@ -248,6 +266,14 @@ export function LeadDetailView({ lead, profile, followUps: initialFollowUps }: P
               </Button>
             </form>
           </div>
+
+          {/* Checklist */}
+          <LeadChecklist
+            leadId={lead.id}
+            userId={profile.id}
+            items={checklistItems}
+            completions={checklistCompletions}
+          />
 
           {/* Follow up history */}
           <div className="bg-white rounded-xl border border-border/60 shadow-card">

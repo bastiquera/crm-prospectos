@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Loader2, Trophy, Package } from 'lucide-react'
+import { Loader2, Trophy, Package, TrendingUp } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import type { Lead, Profile, Product } from '@/types'
 
@@ -36,13 +36,20 @@ export function CloseSaleDialog({ open, onOpenChange, lead, profile }: Props) {
   const [loading, setLoading] = useState(false)
   const [products, setProducts] = useState<Product[]>([])
   const [loadingProducts, setLoadingProducts] = useState(false)
+  const [dupError, setDupError] = useState<string | null>(null)
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
 
   const selectedProductId = watch('product_id')
-  const selectedProduct = products.find((p) => p.id === selectedProductId)
+  const saleValueStr      = watch('value')
+  const selectedProduct   = products.find((p) => p.id === selectedProductId)
+
+  // Commission preview
+  const commissionPct    = selectedProduct?.commission_percentage ?? 0
+  const saleValue        = parseFloat(saleValueStr) || 0
+  const commissionAmount = saleValue * commissionPct / 100
 
   // Load products when dialog opens
   useEffect(() => {
@@ -61,9 +68,31 @@ export function CloseSaleDialog({ open, onOpenChange, lead, profile }: Props) {
 
   async function onSubmit(data: FormData) {
     setLoading(true)
+    setDupError(null)
 
     const product = products.find((p) => p.id === data.product_id)
     const productName = product?.name ?? data.product_id
+    const pct    = product?.commission_percentage ?? 0
+    const value  = parseFloat(data.value)
+    const commission = value * pct / 100
+
+    // ── Check for duplicate: same lead + same product ──────────────
+    const { data: existingSales } = await supabase
+      .from('sales')
+      .select('id, product')
+      .eq('lead_id', lead.id)
+
+    if (existingSales && existingSales.length > 0) {
+      const duplicate = existingSales.find(
+        (s) => s.product.toLowerCase().trim() === productName.toLowerCase().trim()
+      )
+      if (duplicate) {
+        setDupError(`Ya existe una venta de "${productName}" registrada para este prospecto.`)
+        setLoading(false)
+        return
+      }
+    }
+    // ───────────────────────────────────────────────────────────────
 
     // Get closed-won stage
     const { data: closedStage } = await supabase
@@ -77,17 +106,19 @@ export function CloseSaleDialog({ open, onOpenChange, lead, profile }: Props) {
       status:          'closed',
       stage_id:        closedStage?.id ?? lead.stage_id,
       closed_at:       new Date().toISOString(),
-      estimated_value: parseFloat(data.value),
+      estimated_value: value,
     }).eq('id', lead.id)
 
-    // Register sale
+    // Register sale — snapshot commission_percentage and commission_amount
     await supabase.from('sales').insert({
-      lead_id:   lead.id,
-      user_id:   profile.id,
-      value:     parseFloat(data.value),
-      product:   productName,
-      notes:     data.notes ?? null,
-      closed_at: new Date().toISOString(),
+      lead_id:               lead.id,
+      user_id:               profile.id,
+      value,
+      product:               productName,
+      commission_percentage: pct,
+      commission_amount:     commission,
+      notes:                 data.notes ?? null,
+      closed_at:             new Date().toISOString(),
     })
 
     setLoading(false)
@@ -137,11 +168,12 @@ export function CloseSaleDialog({ open, onOpenChange, lead, profile }: Props) {
                     <SelectItem key={product.id} value={product.id}>
                       <div className="flex items-center justify-between gap-4 w-full">
                         <span>{product.name}</span>
-                        {product.price && (
-                          <span className="text-xs text-muted-foreground ml-2">
-                            {formatCurrency(product.price)}
-                          </span>
-                        )}
+                        <span className="text-xs text-muted-foreground ml-2 flex items-center gap-1">
+                          {product.price && <span>{formatCurrency(product.price)}</span>}
+                          {product.commission_percentage > 0 && (
+                            <span className="text-indigo-500 font-medium">· {product.commission_percentage}%</span>
+                          )}
+                        </span>
                       </div>
                     </SelectItem>
                   ))}
@@ -175,6 +207,18 @@ export function CloseSaleDialog({ open, onOpenChange, lead, profile }: Props) {
             {errors.value && <p className="text-red-500 text-xs">{errors.value.message}</p>}
           </div>
 
+          {/* Commission preview */}
+          {selectedProduct && commissionPct > 0 && saleValue > 0 && (
+            <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-indigo-50 border border-indigo-100">
+              <TrendingUp className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-indigo-700 font-medium">Tu comisión por esta venta</p>
+                <p className="text-lg font-bold text-indigo-600">{formatCurrency(commissionAmount)}</p>
+              </div>
+              <span className="text-xs text-indigo-400">{commissionPct}% de {formatCurrency(saleValue)}</span>
+            </div>
+          )}
+
           {/* Notes */}
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">Notas (opcional)</Label>
@@ -185,11 +229,18 @@ export function CloseSaleDialog({ open, onOpenChange, lead, profile }: Props) {
             />
           </div>
 
+          {dupError && (
+            <div className="bg-red-50 border border-red-100 text-red-600 text-[13px] rounded-lg px-3 py-2.5 flex items-start gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0 mt-1.5" />
+              {dupError}
+            </div>
+          )}
+
           <div className="flex gap-3 pt-1">
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => { setDupError(null); onOpenChange(false) }}
               className="flex-1 h-10"
             >
               Cancelar

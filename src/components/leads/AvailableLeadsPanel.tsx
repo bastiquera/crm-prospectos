@@ -3,7 +3,9 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { LeadCard } from './LeadCard'
-import { Inbox, Loader2, Zap } from 'lucide-react'
+import { AddLeadDialog } from '@/components/seller/AddLeadDialog'
+import { Button } from '@/components/ui/button'
+import { Inbox, Loader2, Zap, UserPlus } from 'lucide-react'
 import type { Lead, Profile } from '@/types'
 
 interface Props {
@@ -15,6 +17,7 @@ export function AvailableLeadsPanel({ profile }: Props) {
   const [leads, setLeads] = useState<Lead[]>([])
   const [loading, setLoading] = useState(true)
   const [takingId, setTakingId] = useState<string | null>(null)
+  const [addOpen, setAddOpen] = useState(false)
 
   const fetchLeads = useCallback(async () => {
     const { data } = await supabase
@@ -92,10 +95,16 @@ export function AvailableLeadsPanel({ profile }: Props) {
           <p className="font-medium text-foreground">Sin leads disponibles</p>
           <p className="text-sm text-muted-foreground mt-1">Los nuevos leads aparecerán aquí automáticamente</p>
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted rounded-full px-3 py-1.5">
-          <Zap className="w-3 h-3" />
-          Actualizando en tiempo real
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted rounded-full px-3 py-1.5">
+            <Zap className="w-3 h-3" />
+            Actualizando en tiempo real
+          </div>
+          <Button size="sm" onClick={() => setAddOpen(true)} className="h-8 bg-primary hover:bg-primary/90 text-white text-[13px] gap-1.5">
+            <UserPlus className="w-3.5 h-3.5" /> Agregar prospecto
+          </Button>
         </div>
+        <AddLeadDialog open={addOpen} onOpenChange={setAddOpen} profile={profile} />
       </div>
     )
   }
@@ -113,7 +122,17 @@ export function AvailableLeadsPanel({ profile }: Props) {
             {leads.length} lead{leads.length !== 1 ? 's' : ''} disponible{leads.length !== 1 ? 's' : ''}
           </span>
         </div>
+        <Button
+          size="sm"
+          onClick={() => setAddOpen(true)}
+          className="h-8 bg-primary hover:bg-primary/90 text-white text-[13px] gap-1.5"
+        >
+          <UserPlus className="w-3.5 h-3.5" />
+          Agregar prospecto
+        </Button>
       </div>
+
+      <AddLeadDialog open={addOpen} onOpenChange={setAddOpen} profile={profile} />
 
       {/* Lead cards grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

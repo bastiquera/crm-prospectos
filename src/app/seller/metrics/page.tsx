@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { formatCurrency } from '@/lib/utils'
 import { TrendingUp, Trophy, Users, Target } from 'lucide-react'
+import { RealtimeRefresher } from '@/components/RealtimeRefresher'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,7 +12,7 @@ export default async function SellerMetricsPage() {
   const [{ data: profile }, { data: leads }, { data: sales }] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user!.id).single(),
     supabase.from('leads').select('id, status, created_at').eq('assigned_to', user!.id),
-    supabase.from('sales').select('value, product, closed_at').eq('user_id', user!.id),
+    supabase.from('sales').select('value, product, closed_at').eq('user_id', user!.id).is('deleted_at', null).order('closed_at', { ascending: false }),
   ])
 
   const totalLeads       = leads?.length ?? 0
@@ -29,6 +30,8 @@ export default async function SellerMetricsPage() {
 
   return (
     <div className="space-y-6">
+      <RealtimeRefresher tables={['leads', 'sales']} />
+
       <div>
         <h1 className="text-2xl font-bold text-foreground">Mis métricas</h1>
         <p className="text-muted-foreground text-sm mt-1">Tu rendimiento personal</p>

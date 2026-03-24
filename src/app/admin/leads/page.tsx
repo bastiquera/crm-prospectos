@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge'
 import { formatDistanceToNow, formatCurrency } from '@/lib/utils'
 import { LEAD_SOURCE_LABELS, type Lead } from '@/types'
 import { Database, Circle } from 'lucide-react'
+import { RealtimeRefresher } from '@/components/RealtimeRefresher'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,6 +24,8 @@ export default async function AdminLeadsPage() {
 
   return (
     <div className="space-y-6">
+      <RealtimeRefresher tables={['leads']} />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Base de leads</h1>

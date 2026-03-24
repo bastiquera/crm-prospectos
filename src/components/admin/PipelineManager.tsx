@@ -6,12 +6,12 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Trash2, Trophy, Loader2, ChevronUp, ChevronDown } from 'lucide-react'
-import type { PipelineStage } from '@/types'
+import { Plus, Trash2, Trophy, Loader2, ChevronUp, ChevronDown, CheckSquare, BookOpen } from 'lucide-react'
+import type { PipelineStage, ChecklistItem, Course } from '@/types'
 
-interface Props { stages: PipelineStage[] }
+interface Props { stages: PipelineStage[]; checklistItems: ChecklistItem[]; courses: Course[] }
 
-export function PipelineManager({ stages: initialStages }: Props) {
+export function PipelineManager({ stages: initialStages, checklistItems: initialChecklist, courses: initialCourses }: Props) {
   const router = useRouter()
   const supabase = createClient()
   const [stages, setStages] = useState<PipelineStage[]>(
@@ -21,6 +21,22 @@ export function PipelineManager({ stages: initialStages }: Props) {
   const [adding, setAdding] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [movingId, setMovingId] = useState<string | null>(null)
+
+  // Checklist state
+  const [checklist, setChecklist] = useState<ChecklistItem[]>(
+    [...initialChecklist].sort((a, b) => a.order_index - b.order_index)
+  )
+  const [newCheckLabel, setNewCheckLabel] = useState('')
+  const [addingCheck, setAddingCheck] = useState(false)
+  const [deletingCheckId, setDeletingCheckId] = useState<string | null>(null)
+
+  // Courses state
+  const [courses, setCourses] = useState<Course[]>(
+    [...initialCourses].sort((a, b) => a.order_index - b.order_index)
+  )
+  const [newCourseName, setNewCourseName] = useState('')
+  const [addingCourse, setAddingCourse] = useState(false)
+  const [deletingCourseId, setDeletingCourseId] = useState<string | null>(null)
 
   const sorted = [...stages].sort((a, b) => a.order_index - b.order_index)
 
@@ -78,8 +94,50 @@ export function PipelineManager({ stages: initialStages }: Props) {
     setMovingId(null)
   }
 
+  async function addChecklistItem() {
+    if (!newCheckLabel.trim()) return
+    setAddingCheck(true)
+    const maxOrder = Math.max(...checklist.map((c) => c.order_index), 0)
+    const { data } = await supabase
+      .from('checklist_items')
+      .insert({ label: newCheckLabel.trim(), order_index: maxOrder + 1 })
+      .select()
+      .single()
+    if (data) setChecklist((prev) => [...prev, data as ChecklistItem])
+    setNewCheckLabel('')
+    setAddingCheck(false)
+  }
+
+  async function deleteChecklistItem(id: string) {
+    setDeletingCheckId(id)
+    await supabase.from('checklist_items').delete().eq('id', id)
+    setChecklist((prev) => prev.filter((c) => c.id !== id))
+    setDeletingCheckId(null)
+  }
+
+  async function addCourse() {
+    if (!newCourseName.trim()) return
+    setAddingCourse(true)
+    const maxOrder = Math.max(...courses.map((c) => c.order_index), 0)
+    const { data } = await supabase
+      .from('courses')
+      .insert({ name: newCourseName.trim(), order_index: maxOrder + 1 })
+      .select()
+      .single()
+    if (data) setCourses((prev) => [...prev, data as Course])
+    setNewCourseName('')
+    setAddingCourse(false)
+  }
+
+  async function deleteCourse(id: string) {
+    setDeletingCourseId(id)
+    await supabase.from('courses').delete().eq('id', id)
+    setCourses((prev) => prev.filter((c) => c.id !== id))
+    setDeletingCourseId(null)
+  }
+
   return (
-    <div className="max-w-lg space-y-4">
+    <div className="max-w-lg space-y-8">
       {/* Stages list */}
       <div className="bg-white rounded-xl border border-border/60 shadow-card divide-y divide-border/40">
         {sorted.map((stage, idx) => (
@@ -167,6 +225,120 @@ export function PipelineManager({ stages: initialStages }: Props) {
       <p className="text-xs text-muted-foreground">
         Usa las flechas ↑↓ para reordenar. Las etapas <strong>Inicial</strong>, <strong>Cierre</strong> y <strong>Perdido</strong> no se pueden eliminar.
       </p>
+
+      {/* ── Checklist section ── */}
+      <div className="space-y-4 pt-2 border-t border-border/40">
+        <div>
+          <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+            <CheckSquare className="w-4 h-4 text-primary" />
+            Checklist de clientes
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Pasos que la vendedora debe completar en cada cliente
+          </p>
+        </div>
+
+        <div className="bg-white rounded-xl border border-border/60 shadow-card divide-y divide-border/40">
+          {checklist.length === 0 && (
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+              Sin ítems. Agrega el primero abajo.
+            </div>
+          )}
+          {checklist.map((item) => (
+            <div
+              key={item.id}
+              className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/50 transition-colors group"
+            >
+              <CheckSquare className="w-4 h-4 text-primary/30 flex-shrink-0" />
+              <span className="flex-1 text-sm text-foreground">{item.label}</span>
+              <button
+                onClick={() => deleteChecklistItem(item.id)}
+                disabled={deletingCheckId === item.id}
+                className="text-muted-foreground/40 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+              >
+                {deletingCheckId === item.id
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <Trash2 className="w-3.5 h-3.5" />
+                }
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex gap-2">
+          <Input
+            value={newCheckLabel}
+            onChange={(e) => setNewCheckLabel(e.target.value)}
+            placeholder="Nuevo ítem del checklist..."
+            className="h-10 text-sm"
+            onKeyDown={(e) => e.key === 'Enter' && addChecklistItem()}
+          />
+          <Button
+            onClick={addChecklistItem}
+            disabled={addingCheck || !newCheckLabel.trim()}
+            className="h-10 bg-primary hover:bg-primary/90 text-white px-4"
+          >
+            {addingCheck ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+          </Button>
+        </div>
+      </div>
+
+      {/* ── Courses section ── */}
+      <div className="space-y-4 pt-2 border-t border-border/40">
+        <div>
+          <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+            <BookOpen className="w-4 h-4 text-primary" />
+            Cursos de interés
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Cursos disponibles para que los leads seleccionen en el formulario de captura
+          </p>
+        </div>
+
+        <div className="bg-white rounded-xl border border-border/60 shadow-card divide-y divide-border/40">
+          {courses.length === 0 && (
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+              Sin cursos. Agrega el primero abajo.
+            </div>
+          )}
+          {courses.map((course) => (
+            <div
+              key={course.id}
+              className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/50 transition-colors group"
+            >
+              <BookOpen className="w-4 h-4 text-primary/30 flex-shrink-0" />
+              <span className="flex-1 text-sm text-foreground">{course.name}</span>
+              <button
+                onClick={() => deleteCourse(course.id)}
+                disabled={deletingCourseId === course.id}
+                className="text-muted-foreground/40 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+              >
+                {deletingCourseId === course.id
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <Trash2 className="w-3.5 h-3.5" />
+                }
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex gap-2">
+          <Input
+            value={newCourseName}
+            onChange={(e) => setNewCourseName(e.target.value)}
+            placeholder="Nombre del curso..."
+            className="h-10 text-sm"
+            onKeyDown={(e) => e.key === 'Enter' && addCourse()}
+          />
+          <Button
+            onClick={addCourse}
+            disabled={addingCourse || !newCourseName.trim()}
+            className="h-10 bg-primary hover:bg-primary/90 text-white px-4"
+          >
+            {addingCourse ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }

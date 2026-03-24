@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { LeadDetailView } from '@/components/leads/LeadDetailView'
-import type { Lead, Profile, FollowUp } from '@/types'
+import type { Lead, Profile, FollowUp, ChecklistItem, LeadChecklistCompletion } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,16 +13,28 @@ export default async function LeadDetailPage({ params }: Props) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const [{ data: profile }, { data: lead }, { data: followUps }] = await Promise.all([
+  const [
+    { data: profile },
+    { data: lead },
+    { data: followUps },
+    { data: checklistItems },
+    { data: completions },
+  ] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user!.id).single(),
     supabase.from('leads')
-      .select('*, stage:pipeline_stages(*), assignee:profiles!leads_assigned_to_fkey(*)')
+      .select('*, stage:pipeline_stages(*), assignee:profiles!leads_assigned_to_fkey(*), course:courses(*)')
       .eq('id', id)
       .single(),
     supabase.from('follow_ups')
       .select('*, user:profiles(*)')
       .eq('lead_id', id)
       .order('created_at', { ascending: false }),
+    supabase.from('checklist_items')
+      .select('*')
+      .order('order_index', { ascending: true }),
+    supabase.from('lead_checklist_completions')
+      .select('*')
+      .eq('lead_id', id),
   ])
 
   if (!lead) notFound()
@@ -33,6 +45,8 @@ export default async function LeadDetailPage({ params }: Props) {
       lead={lead as Lead}
       profile={profile as Profile}
       followUps={(followUps ?? []) as FollowUp[]}
+      checklistItems={(checklistItems ?? []) as ChecklistItem[]}
+      checklistCompletions={(completions ?? []) as LeadChecklistCompletion[]}
     />
   )
 }

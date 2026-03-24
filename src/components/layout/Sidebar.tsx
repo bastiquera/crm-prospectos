@@ -5,10 +5,11 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   BarChart3, Users, Kanban, TrendingUp,
-  Database, Settings, LogOut, Inbox, Package
+  Database, Settings, LogOut, Inbox, Package, ShoppingBag, Percent, Menu, X, DollarSign
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Profile } from '@/types'
+import { useState } from 'react'
 
 interface NavItem {
   href: string
@@ -17,18 +18,22 @@ interface NavItem {
 }
 
 const adminNav: NavItem[] = [
-  { href: '/admin',           label: 'Dashboard',       icon: BarChart3 },
-  { href: '/admin/leads',     label: 'Todos los leads', icon: Database },
-  { href: '/admin/vendors',   label: 'Vendedores',      icon: Users },
-  { href: '/admin/products',  label: 'Productos',       icon: Package },
-  { href: '/admin/pipeline',  label: 'Pipeline',        icon: Settings },
-  { href: '/admin/metrics',   label: 'Métricas',        icon: TrendingUp },
+  { href: '/admin',                label: 'Dashboard',       icon: BarChart3 },
+  { href: '/admin/leads',          label: 'Todos los leads', icon: Database },
+  { href: '/admin/sales',          label: 'Ventas',          icon: ShoppingBag },
+  { href: '/admin/commissions',    label: 'Comisiones',      icon: Percent },
+  { href: '/admin/vendors',        label: 'Vendedores',      icon: Users },
+  { href: '/admin/products',       label: 'Productos',       icon: Package },
+  { href: '/admin/pipeline',       label: 'Pipeline',        icon: Settings },
+  { href: '/admin/metrics',        label: 'Métricas',        icon: TrendingUp },
+  { href: '/admin/system-cost',    label: 'Costo de uso',    icon: DollarSign },
 ]
 
 const sellerNav: NavItem[] = [
-  { href: '/seller',          label: 'Leads nuevos', icon: Inbox },
-  { href: '/seller/pipeline', label: 'Mi pipeline',  icon: Kanban },
-  { href: '/seller/metrics',  label: 'Mis métricas', icon: TrendingUp },
+  { href: '/seller',               label: 'Nuevos contactos',  icon: Inbox },
+  { href: '/seller/pipeline',      label: 'Panel de clientes', icon: Kanban },
+  { href: '/seller/metrics',       label: 'Mis métricas',      icon: TrendingUp },
+  { href: '/seller/commissions',   label: 'Mis comisiones',    icon: Percent },
 ]
 
 interface SidebarProps { profile: Profile }
@@ -38,32 +43,51 @@ export function Sidebar({ profile }: SidebarProps) {
   const router   = useRouter()
   const supabase = createClient()
   const nav      = profile.role === 'admin' ? adminNav : sellerNav
+  const [open, setOpen] = useState(false)
 
   async function handleLogout() {
     await supabase.auth.signOut()
     router.push('/login')
   }
 
-  return (
-    <aside className="fixed inset-y-0 left-0 w-60 bg-[#0B1120] flex flex-col z-30 border-r border-slate-800/60">
+  function handleNavClick() {
+    setOpen(false)
+  }
+
+  const sidebarContent = (
+    <aside className={cn(
+      'fixed inset-y-0 left-0 w-60 bg-[#0B1120] flex flex-col z-40 border-r border-slate-800/60 transition-transform duration-300',
+      // On mobile: slide in/out. On desktop: always visible
+      'md:translate-x-0',
+      open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+    )}>
 
       {/* Brand */}
       <div className="px-5 pt-6 pb-5 border-b border-slate-800/60">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-indigo-500/25">
-            <BarChart3 className="w-4 h-4 text-white" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-indigo-500/25">
+              <BarChart3 className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <span
+                className="text-white font-bold text-[15px] tracking-tight block leading-none"
+                style={{ fontFamily: 'var(--font-jakarta)' }}
+              >
+                CRM Pro
+              </span>
+              <span className="text-slate-500 text-[10px] font-medium tracking-widest uppercase mt-0.5 block">
+                {profile.role === 'admin' ? 'Administrador' : 'Vendedor'}
+              </span>
+            </div>
           </div>
-          <div>
-            <span
-              className="text-white font-bold text-[15px] tracking-tight block leading-none"
-              style={{ fontFamily: 'var(--font-jakarta)' }}
-            >
-              CRM Pro
-            </span>
-            <span className="text-slate-500 text-[10px] font-medium tracking-widest uppercase mt-0.5 block">
-              {profile.role === 'admin' ? 'Administrador' : 'Vendedor'}
-            </span>
-          </div>
+          {/* Close button — mobile only */}
+          <button
+            onClick={() => setOpen(false)}
+            className="md:hidden text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800/60 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
       </div>
 
@@ -76,6 +100,7 @@ export function Sidebar({ profile }: SidebarProps) {
             <Link
               key={href}
               href={href}
+              onClick={handleNavClick}
               className={cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all group',
                 active
@@ -124,5 +149,31 @@ export function Sidebar({ profile }: SidebarProps) {
         </button>
       </div>
     </aside>
+  )
+
+  return (
+    <>
+      {/* Hamburger button — mobile only, shown when sidebar is closed */}
+      <button
+        onClick={() => setOpen(true)}
+        className={cn(
+          'fixed top-4 left-4 z-50 md:hidden p-2 rounded-lg bg-[#0B1120] border border-slate-800/60 text-slate-300 hover:text-white shadow-lg transition-all',
+          open && 'hidden'
+        )}
+        aria-label="Abrir menú"
+      >
+        <Menu className="w-5 h-5" />
+      </button>
+
+      {/* Backdrop — mobile only */}
+      {open && (
+        <div
+          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          onClick={() => setOpen(false)}
+        />
+      )}
+
+      {sidebarContent}
+    </>
   )
 }

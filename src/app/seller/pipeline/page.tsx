@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { KanbanBoard } from '@/components/pipeline/KanbanBoard'
+import { RealtimeRefresher } from '@/components/RealtimeRefresher'
 import type { Lead, PipelineStage, Profile } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -24,6 +25,8 @@ export default async function SellerPipelinePage() {
 
   return (
     <div className="space-y-6">
+      <RealtimeRefresher tables={['leads']} />
+
       <div>
         <h1 className="text-2xl font-bold text-foreground">Mi Pipeline</h1>
         <p className="text-muted-foreground text-sm mt-1">

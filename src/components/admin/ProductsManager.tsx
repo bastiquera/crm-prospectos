@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Trash2, Loader2, Package, ToggleLeft, ToggleRight, DollarSign } from 'lucide-react'
+import { Plus, Trash2, Loader2, Package, ToggleLeft, ToggleRight, DollarSign, Percent } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import type { Product } from '@/types'
 
@@ -20,6 +20,7 @@ export function ProductsManager({ products: initialProducts }: Props) {
   const [newName, setNewName] = useState('')
   const [newPrice, setNewPrice] = useState('')
   const [newDesc, setNewDesc] = useState('')
+  const [newCommission, setNewCommission] = useState('')
   const [adding, setAdding] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [togglingId, setTogglingId] = useState<string | null>(null)
@@ -31,10 +32,11 @@ export function ProductsManager({ products: initialProducts }: Props) {
     const { data } = await supabase
       .from('products')
       .insert({
-        name:        newName.trim(),
-        description: newDesc.trim() || null,
-        price:       newPrice ? parseFloat(newPrice) : null,
-        is_active:   true,
+        name:                  newName.trim(),
+        description:           newDesc.trim() || null,
+        price:                 newPrice ? parseFloat(newPrice) : null,
+        commission_percentage: newCommission ? parseFloat(newCommission) : 0,
+        is_active:             true,
       })
       .select()
       .single()
@@ -43,6 +45,7 @@ export function ProductsManager({ products: initialProducts }: Props) {
     setNewName('')
     setNewPrice('')
     setNewDesc('')
+    setNewCommission('')
     setAdding(false)
     router.refresh()
   }
@@ -61,6 +64,14 @@ export function ProductsManager({ products: initialProducts }: Props) {
     await supabase.from('products').delete().eq('id', id)
     setProducts((prev) => prev.filter((p) => p.id !== id))
     setDeletingId(null)
+    router.refresh()
+  }
+
+  async function updateCommission(id: string, value: number) {
+    await supabase.from('products').update({ commission_percentage: value }).eq('id', id)
+    setProducts((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, commission_percentage: value } : p))
+    )
     router.refresh()
   }
 
@@ -98,14 +109,31 @@ export function ProductsManager({ products: initialProducts }: Props) {
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Descripción (opcional)</Label>
-          <Input
-            value={newDesc}
-            onChange={(e) => setNewDesc(e.target.value)}
-            placeholder="Breve descripción del producto"
-            className="h-9 text-sm"
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Descripción (opcional)</Label>
+            <Input
+              value={newDesc}
+              onChange={(e) => setNewDesc(e.target.value)}
+              placeholder="Breve descripción del producto"
+              className="h-9 text-sm"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground flex items-center gap-1">
+              <Percent className="w-3 h-3" /> Comisión vendedora (%)
+            </Label>
+            <Input
+              type="number"
+              min="0"
+              max="100"
+              step="0.1"
+              value={newCommission}
+              onChange={(e) => setNewCommission(e.target.value)}
+              placeholder="ej. 10"
+              className="h-9 text-sm"
+            />
+          </div>
         </div>
 
         <Button
@@ -137,6 +165,7 @@ export function ProductsManager({ products: initialProducts }: Props) {
                 product={product}
                 onToggle={toggleProduct}
                 onDelete={deleteProduct}
+                onUpdateCommission={updateCommission}
                 togglingId={togglingId}
                 deletingId={deletingId}
               />
@@ -158,6 +187,7 @@ export function ProductsManager({ products: initialProducts }: Props) {
                 product={product}
                 onToggle={toggleProduct}
                 onDelete={deleteProduct}
+                onUpdateCommission={updateCommission}
                 togglingId={togglingId}
                 deletingId={deletingId}
               />
@@ -178,14 +208,27 @@ export function ProductsManager({ products: initialProducts }: Props) {
 }
 
 function ProductRow({
-  product, onToggle, onDelete, togglingId, deletingId,
+  product, onToggle, onDelete, onUpdateCommission, togglingId, deletingId,
 }: {
   product: Product
   onToggle: (id: string, current: boolean) => void
   onDelete: (id: string) => void
+  onUpdateCommission: (id: string, value: number) => void
   togglingId: string | null
   deletingId: string | null
 }) {
+  const [editingCommission, setEditingCommission] = useState(false)
+  const [commissionVal, setCommissionVal] = useState(String(product.commission_percentage ?? 0))
+  const [saving, setSaving] = useState(false)
+
+  async function saveCommission() {
+    setSaving(true)
+    const v = parseFloat(commissionVal) || 0
+    await onUpdateCommission(product.id, v)
+    setSaving(false)
+    setEditingCommission(false)
+  }
+
   return (
     <div className="flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50/50 transition-colors group">
       <div className="flex-1 min-w-0">
@@ -194,12 +237,46 @@ function ProductRow({
           <p className="text-xs text-muted-foreground truncate mt-0.5">{product.description}</p>
         )}
       </div>
+
+      {/* Commission badge / editor */}
+      <div className="flex items-center gap-1 flex-shrink-0">
+        {editingCommission ? (
+          <div className="flex items-center gap-1">
+            <Input
+              type="number"
+              min="0"
+              max="100"
+              step="0.1"
+              value={commissionVal}
+              onChange={(e) => setCommissionVal(e.target.value)}
+              className="h-7 w-20 text-xs px-2"
+              autoFocus
+              onKeyDown={(e) => { if (e.key === 'Enter') saveCommission(); if (e.key === 'Escape') setEditingCommission(false) }}
+            />
+            <span className="text-xs text-muted-foreground">%</span>
+            <Button size="sm" onClick={saveCommission} disabled={saving} className="h-7 px-2 text-xs">
+              {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : 'OK'}
+            </Button>
+          </div>
+        ) : (
+          <button
+            onClick={() => { setCommissionVal(String(product.commission_percentage ?? 0)); setEditingCommission(true) }}
+            title="Editar comisión"
+            className="flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-colors"
+          >
+            <Percent className="w-3 h-3" />
+            {product.commission_percentage ?? 0}% comisión
+          </button>
+        )}
+      </div>
+
       {product.price && (
         <div className="flex items-center gap-1 text-xs text-muted-foreground flex-shrink-0">
           <DollarSign className="w-3 h-3" />
           {formatCurrency(product.price)}
         </div>
       )}
+
       <div className="flex items-center gap-2 flex-shrink-0">
         <button
           onClick={() => onToggle(product.id, product.is_active)}

@@ -81,9 +81,11 @@ export interface Lead {
   taken_at: string | null
   closed_at: string | null
   created_at: string
+  course_id: string | null
   // Joined
   stage?: PipelineStage
   assignee?: Profile
+  course?: Course
 }
 
 export interface FollowUp {
@@ -104,6 +106,9 @@ export interface Sale {
   user_id: string
   value: number
   product: string
+  commission_percentage: number
+  commission_amount: number
+  commission_payment_id: string | null   // null = pendiente de pago
   notes: string | null
   closed_at: string
   // Joined
@@ -116,7 +121,56 @@ export interface Product {
   name: string
   description: string | null
   price: number | null
+  commission_percentage: number
   is_active: boolean
+  created_at: string
+}
+
+export interface CommissionPayment {
+  id: string
+  seller_id: string
+  paid_by: string
+  period_start: string
+  period_end: string
+  total_amount: number
+  sales_count: number
+  notes: string | null
+  paid_at: string
+  created_at: string
+  // Joined
+  seller?: Profile
+  payer?: Profile
+}
+
+export interface ChecklistItem {
+  id: string
+  label: string
+  order_index: number
+  created_at: string
+}
+
+export interface Course {
+  id: string
+  name: string
+  order_index: number
+  is_active: boolean
+  created_at: string
+}
+
+export interface LeadChecklistCompletion {
+  id: string
+  lead_id: string
+  checklist_item_id: string
+  completed_by: string | null
+  completed_at: string
+}
+
+export interface SystemCostRate {
+  id: string
+  rate: number
+  effective_from: string
+  created_by: string | null
+  notes: string | null
   created_at: string
 }
 

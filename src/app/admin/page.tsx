@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { formatCurrency } from '@/lib/utils'
 import { Users, Inbox, Trophy, TrendingUp, BarChart3 } from 'lucide-react'
 import type { Profile } from '@/types'
+import { RealtimeRefresher } from '@/components/RealtimeRefresher'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,7 +11,7 @@ export default async function AdminDashboardPage() {
 
   const [{ data: leads }, { data: sales }, { data: sellers }] = await Promise.all([
     supabase.from('leads').select('id, status, source, assigned_to, created_at'),
-    supabase.from('sales').select('value, user_id, closed_at'),
+    supabase.from('sales').select('value, user_id, closed_at').is('deleted_at', null),
     supabase.from('profiles').select('*').eq('role', 'seller').eq('is_active', true),
   ])
 
@@ -48,6 +49,8 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
+      <RealtimeRefresher tables={['leads', 'sales']} />
+
       <div>
         <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
         <p className="text-muted-foreground text-sm mt-1">Visión general del equipo de ventas</p>
