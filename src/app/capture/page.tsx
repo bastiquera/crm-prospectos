@@ -104,6 +104,8 @@ export default function CapturePage() {
           <div className="pb-10">
             <a
               href="https://capacitacionyseguridad.com/"
+              target="_blank"
+              rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 w-full h-12 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white text-sm font-medium transition-all"
             >
               ← Volver a la página principal
